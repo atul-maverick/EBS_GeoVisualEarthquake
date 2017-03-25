@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<style>
+    .button {
+        -moz-appearance: button;
+        /* Firefox */
+        -webkit-appearance: button;
+        /* Safari and Chrome */
+        padding: 10px;
+        margin: 10px;
+        width: 70px;
+    }
+    .drop-box {
+        background: #F8F8F8;
+        border: 5px dashed #DDD;
+        width: 600px;
+        height:300px;
+        text-align: center;
+        padding-top: 25px;
+        margin: 10px;
+    }
+    .dragover {
+        border: 5px dashed blue;
+    }
+</style>
+<head>
+    <title> Welcome </title>
+
+</head>
+<script src="//code.jquery.com/jquery-2.0.3.min.js"></script>
+<script src="//ajax.googleapis.com/ajax/libs/angularjs/1.3.13/angular.js"></script>
+<script src="//angular-ui.github.io/bootstrap/ui-bootstrap-tpls-0.13.0.js"></script>
+<link href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css" rel="stylesheet">
+<script src="//d3js.org/d3.v3.min.js"></script>
+<script src='https://api.tiles.mapbox.com/mapbox.js/v2.1.9/mapbox.js'></script>
+<link href='https://api.tiles.mapbox.com/mapbox.js/v2.1.9/mapbox.css' rel='stylesheet' />
+<body>
+<div ng-app="tabLoad" class="container">
+	
+    <h3 style="text-align:center">Welcome to Earthquake Geo report!!</h3>
+	
+    <div ng-controller="tabCtrl" text-align="center">
+     <div style="text-align:center">    
+    <div class="btn btn-default btn-sm" >
+    <div class="form-group">
+		<div>
+			<h4>Select duration in below options</h4>
+				<select ng-model="time.duration">
+					<option value="month">Month</option>
+					<option value="week">Week</option>
+					<option value="day">Day</option>
+				</select>
+				<button  type="button" class="btn btn-default" ng-click="loadmap(time)"  > Click here!</button>
+			
+		</div>
+       </div>
+		</div>	
+		</div>
+				
+          <div id="map" style="position: absolute; height: 100%; width: 100%;"></div>    
+		 
+    </div>
+</div>
+<hr>
+
+
+<script>
+    var app = angular.module('tabLoad',[]);
+    app.config(function($interpolateProvider) {
+    $interpolateProvider.startSymbol('[[');
+    $interpolateProvider.endSymbol(']]');
+  });
+    <!-- Implementing the controller -->
+    app.controller("tabCtrl",function($scope,$http,$timeout) {
+        $scope.options=false
+        $scope.HEADER=''
+        $scope.fileupload=false
+        $scope.tabvisible = false;
+		
+        var dat=''
+		L.mapbox.accessToken = 'pk.eyJ1Ijoic3RlbmluamEiLCJhIjoiSjg5eTMtcyJ9.g_O2emQF6X9RV69ibEsaIw';
+		var map = L.mapbox.map('map', 'mapbox.streets-basic');
+		
+        $scope.loadmap=function(values)
+		{	
+			
+			$http.get('/getData/'+values.duration).then(function(response){
+							//console.log(response.data);
+							dat=response.data
+							// Loop through data and create d.LatLng 
+							dat.forEach(function(d) {
+								d.LatLng = new L.LatLng(d[0], d[1]);
+								map.addLayer(L.circle([d[0], d[1]], 500));
+							});
+							// Append <svg> to #map
+							var svg = d3.select(map.getPanes().overlayPane).append("svg")
+							.attr("class", "leaflet-zoom-animated")
+							.attr("width", window.innerWidth)
+							.attr("height", window.innerHeight);
+
+							// Append <g> to <svg>
+							var g = svg.append("g").attr("class", "leaflet-zoom-hide");
+	
+							// Append <circle> to <g>
+							var circles = g.selectAll("circle")
+							.data(dat)
+							.enter()
+							.append("circle")
+							.style("fill", "rgba(255, 255, 255, .5)");
+							
+							circles.on("mouseenter", function(curr) { 
+							console.log(curr);
+							 var xPosition = d3.mouse(this)[0];
+							var yPosition = d3.mouse(this)[1] - 30;
+							g.append("text")
+								.attr("class", "info")
+								.attr("id", "tooltip")
+								.attr("x", xPosition)
+								.attr("y", yPosition)
+								.attr("width",200)
+								.attr("height",3)
+								.text(curr[2]+ "\n Eartquake Magnitude:"+curr[3])
+								.style('fill', 'Black')
+								.style("font-size", "12px")
+							$scope.infotab=true;
+							$scope.$apply();
+							
+							});
+							circles.on("mouseleave", function(curr) {  
+								g.select('#tooltip').remove();
+								$scope.infotab=false;
+								$scope.$apply();
+							});
+
+							function update() {
+								translateSVG()
+								circles.attr("cx", function(d) { return map.latLngToLayerPoint(d.LatLng).x; })
+								circles.attr("cy", function(d) { return map.latLngToLayerPoint(d.LatLng).y; })
+								circles.attr("r", function(d) { return 0.005 * Math.pow(2, map.getZoom()); })
+							}
+
+							// Adjust the circles when the map is moved
+							function translateSVG() {
+								var viewBoxLeft = document.querySelector("svg.leaflet-zoom-animated").viewBox.animVal.x;
+								var viewBoxTop = document.querySelector("svg.leaflet-zoom-animated").viewBox.animVal.y;
+								// Reszing width and height incase of window resize
+								svg.attr("width", window.innerWidth)
+								svg.attr("height", window.innerHeight)
+								  // Adding the ViewBox attribute to our SVG to contain it
+								svg.attr("viewBox", function() {
+								  return "" + viewBoxLeft + " " + viewBoxTop + " " + window.innerWidth + " " + window.innerHeight;
+								});
+								// Adding the style attribute to our SVG to transkate it
+								svg.attr("style", function() {
+								  return "transform: translate3d(" + viewBoxLeft + "px, " + viewBoxTop + "px, 0px);";
+								});
+							}
+
+							// Re-draw on reset, this keeps the markers where they should be on reset/zoom
+							map.on("moveend", update);
+							update();
+
+									
+					});
+									
+									
+									};
+    }); <!-- End of controller -->
+</script>
+</body>
+</html>

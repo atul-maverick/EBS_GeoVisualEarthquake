@@ -79,8 +79,8 @@
 		
         var dat=''
 		L.mapbox.accessToken = 'pk.eyJ1Ijoic3RlbmluamEiLCJhIjoiSjg5eTMtcyJ9.g_O2emQF6X9RV69ibEsaIw';
-		var map = L.mapbox.map('map', 'mapbox.streets-basic');
-		
+		var map = L.mapbox.map('map', 'mapbox.streets-basic')//.setView([51.505, -0.09], 13);
+
         $scope.loadmap=function(values)
 		{	
 			
@@ -88,7 +88,26 @@
 							//console.log(response.data);
 							dat=response.data
 							// Loop through data and create d.LatLng 
+							//d3vis(dat);
 							dat.forEach(function(d) {
+							    var pointer=L.circle([d[0], d[1]], 500);
+							    map.addLayer(pointer);
+                                pointer
+                                    .bindPopup(d[2] + "\n Eartquake Magnitude:" + d[3])
+                                    .on('mouseover', function (e) {
+                                        this.openPopup();
+                                    })
+                                    .on('mouseout', function (e) {
+                                        this.closePopup();
+                                    });
+
+                            });
+									
+					});
+
+
+			var d3vis=function(dat){
+			  dat.forEach(function(d) {
 								d.LatLng = new L.LatLng(d[0], d[1]);
 								map.addLayer(L.circle([d[0], d[1]], 500));
 							});
@@ -100,15 +119,15 @@
 
 							// Append <g> to <svg>
 							var g = svg.append("g").attr("class", "leaflet-zoom-hide");
-	
+
 							// Append <circle> to <g>
 							var circles = g.selectAll("circle")
 							.data(dat)
 							.enter()
 							.append("circle")
 							.style("fill", "rgba(255, 255, 255, .5)");
-							
-							circles.on("mouseenter", function(curr) { 
+
+							circles.on("mouseenter", function(curr) {
 							console.log(curr);
 							 var xPosition = d3.mouse(this)[0];
 							var yPosition = d3.mouse(this)[1] - 30;
@@ -124,9 +143,9 @@
 								.style("font-size", "12px")
 							$scope.infotab=true;
 							$scope.$apply();
-							
+
 							});
-							circles.on("mouseleave", function(curr) {  
+							circles.on("mouseleave", function(curr) {
 								g.select('#tooltip').remove();
 								$scope.infotab=false;
 								$scope.$apply();
@@ -160,9 +179,7 @@
 							map.on("moveend", update);
 							update();
 
-									
-					});
-									
+            };
 									
 									};
     }); <!-- End of controller -->
